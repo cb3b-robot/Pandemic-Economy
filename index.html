@@ -3,35 +3,30 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pandemic City — Ownership, Needs & Workers</title>
+<title>Pandemic City — Isometric + Primer Blobs</title>
 <style>
-  :root { --w: 720px; --h: 480px; --cell: 20px; }
+  :root { --w: 900px; --h: 560px; }
   *{box-sizing:border-box}
-  body{margin:0;background:#0e1118;color:#eef3ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px}
-  h1{margin:8px 0 4px;font-size:clamp(18px,3.4vw,28px);letter-spacing:.2px}
+  body{margin:0;background:#0d1018;color:#eef3ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px}
+  h1{margin:8px 0 4px;font-size:clamp(18px,3.2vw,28px);letter-spacing:.2px}
   #top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;background:#141a2a;border:1px solid #223152;border-radius:12px;padding:8px 12px}
   .pill{padding:6px 10px;background:#0f1526;border:1px solid #203259;border-radius:10px}
-  .accent{color:#9bd6ff}
-  .ok{color:#8cf0a7}.warn{color:#ffd47a}.bad{color:#ff8b8b}
-  #wrap{display:grid;grid-template-columns: 1fr 1fr;gap:10px;width:min(1100px,98vw)}
+  .accent{color:#9bd6ff}.ok{color:#8cf0a7}.bad{color:#ff8b8b}
+  #wrap{display:grid;grid-template-columns: 1fr 1fr;gap:10px;width:min(1200px,98vw)}
   #left,#right{background:#12182a;border:1px solid #223152;border-radius:12px;padding:10px}
-  #game{width:var(--w);height:var(--h);background:#161d33;border:1px solid #243458;border-radius:10px;display:block;margin:auto}
-  #hover{font-size:12px;opacity:.9}
-  #legend{font-size:12px;opacity:.9;line-height:1.35}
-  .badge{display:inline-block;padding:2px 6px;border-radius:6px;font-size:12px;margin-left:6px;border:1px solid #2b3c66}
-  .b-house{background:#242a44}.b-biz{background:#1d3353}
+  #game{width:var(--w);height:var(--h);background:#0f1523;border:1px solid #23314f;border-radius:10px;display:block;margin:auto}
+  #hover{font-size:12px;opacity:.9;margin-top:4px}
   #controls{display:flex;flex-wrap:wrap;gap:8px}
-  button, label, select{background:#182444;color:#e8f0ff;border:1px solid #2a4070;border-radius:10px;padding:7px 10px;font-size:14px}
+  button,label{background:#182444;color:#e8f0ff;border:1px solid #2a4070;border-radius:10px;padding:7px 10px;font-size:14px}
   button:hover{filter:brightness(1.08);cursor:pointer}
-  #visits{display:flex;gap:10px;flex-wrap:wrap}
-  .slot{background:#0f1426;border:1px solid #2a4070;padding:8px;border-radius:10px;min-width:230px}
+  #visits{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .slot{background:#0f1426;border:1px solid #2a4070;padding:8px;border-radius:10px;min-width:240px}
   #pane{margin-top:8px}
   #log{height:170px;overflow:auto;background:#0f1422;border:1px solid #243458;border-radius:10px;padding:8px;font-size:12px}
-  .k{color:#d8e7ff}
 </style>
 </head>
 <body>
-<h1>Pandemic City — Ownership, Needs & Workers</h1>
+<h1>Pandemic City — Isometric + Primer Blobs</h1>
 
 <div id="top">
   <div class="pill">Day: <span id="day" class="accent">1</span></div>
@@ -45,12 +40,8 @@
 
 <div id="wrap">
   <div id="left">
-    <canvas id="game" width="720" height="480"></canvas>
+    <canvas id="game" width="900" height="560"></canvas>
     <div id="hover"></div>
-    <div id="legend">
-      <strong>Legend:</strong> <span class="badge b-house">House</span> <span class="badge b-biz">Business</span> ·
-      Agents: Healthy(cyan), Sick(red), You(yellow/orange) · Infection 1%/s within ~12px (reduced by house level). Sick = 7 days.
-    </div>
   </div>
 
   <div id="right">
@@ -60,8 +51,7 @@
       <button id="fastBtn">Fast</button>
       <button id="skipBtn">Skip</button>
     </div>
-
-    <div id="visits" style="margin-top:8px">
+    <div id="visits">
       <div class="slot">
         <div><strong>Visit 1:</strong> <span id="v1">— (click a business)</span></div>
         <label><input type="checkbox" id="w1"> Work this visit</label>
@@ -71,24 +61,49 @@
         <label><input type="checkbox" id="w2"> Work this visit</label>
       </div>
     </div>
-
     <div id="pane"></div>
-
     <h3 style="margin:10px 0 6px;">City Log</h3>
     <div id="log"></div>
   </div>
 </div>
 
 <script>
-/* ---------- Config ---------- */
-const W=720,H=480,CELL=20, COLS=Math.floor(W/CELL), ROWS=Math.floor(H/CELL);
-const GRID="#26365d", HOUSE="#2a3152", BIZ="#1f3a60";
-const INF_RAD=12, INF_BASE=0.01, SICK_DAYS=7;
-const PHASE_MS=11000; // ~11s per visit
-const POP=70, HOUSES=50, SHOPS=24;
-const SPEEDS={normal:1,fast:4,skip:999};
+/* =========================
+   ISOMETRIC RENDER SETTINGS
+========================= */
+const W=900,H=560;
+const GRID_COLS=28, GRID_ROWS=18;     // logical grid size
+const TILE_W=44, TILE_H=22;           // isometric diamond size
+const ELEV=18;                        // wall height for extruded buildings
+const ORIGIN_X=W/2, ORIGIN_Y=80;      // where (0,0) draws in screen space
 
-/* ---------- Products & shops ---------- */
+// grid↔screen transforms
+function isoToScreen(col,row,z=0){
+  const x = (col - row) * (TILE_W/2);
+  const y = (col + row) * (TILE_H/2) - z;
+  return {x: ORIGIN_X + x, y: ORIGIN_Y + y};
+}
+function screenToIso(sx,sy){
+  // inverse transform (assuming z≈0 where we click)
+  sx -= ORIGIN_X; sy -= ORIGIN_Y;
+  const col = Math.floor((sy / (TILE_H/2) + sx / (TILE_W/2)) / 2);
+  const row = Math.floor((sy / (TILE_H/2) - sx / (TILE_W/2)) / 2);
+  return {col,row};
+}
+
+/* ==============
+   GAME CONSTANTS
+================= */
+const PHASE_MS = 11000;
+const INF_BASE = 0.01;      // 1%/s when in proximity
+const INF_RAD  = 16;        // pixel distance in screen space
+const SICK_DAYS= 7;
+const POP      = 70;
+const HOUSES   = 45;
+const SHOPS    = 26;
+const SPEEDS   = {normal:1,fast:4,skip:999};
+
+// products & catalog
 const PRODUCTS=[
   {id:"food",name:"Food",base:10, need:"food"},
   {id:"med",name:"Medicine",base:26},
@@ -110,7 +125,9 @@ const CATALOG=[
   {type:"Outlet", offers:["shirt","gadget"]},
 ];
 
-/* ---------- State ---------- */
+/* =========
+   STATE
+========== */
 const cvs=document.getElementById('game'), ctx=cvs.getContext('2d');
 const dayEl=gid('day'), phaseEl=gid('phase'), visitsLeftEl=gid('visitsLeft'), visitsMaxEl=gid('visitsMax');
 const moneyEl=gid('money'), statusEl=gid('status'), hoverEl=gid('hover'), pane=gid('pane');
@@ -118,43 +135,42 @@ const v1El=gid('v1'), v2El=gid('v2'), w1El=gid('w1'), w2El=gid('w2'), logEl=gid(
 const houseLvEl=gid('houseLv'), nfEl=gid('nf'), neEl=gid('ne');
 
 let day=1, phase="Planning", speed=SPEEDS.normal;
-let visitsMax=2, visitsLeft=2;
-let running=false, tPhase=0, lastTs=0;
+let visitsMax=2, visitsLeft=2, running=false, tPhase=0, lastTs=0;
 
-const buildings=[]; // {id,kind:'house'|'biz',x,y,col,row,name,type,stock,sellerIdeal,owner:-1,hired:false,till}
+const buildings=[]; // {id, kind, col,row, name,type, stock, sellerIdeal, owner, hired, till}
 const citizens=[];  // NPCs
-const taken=new Set();
 
 const player={
-  x:0,y:0,vx:0,vy:0,target:null,home:null,
+  col:0,row:0, x:0,y:0, vx:0,vy:0, target:null, home:null,
   sick:false,sickDays:0, money:200,
   priceIdeal:{}, inventory:{}, dest:[null,null], work:[false,false],
   needs:{foodOk:true, funOk:true, grumpy:false}, houseLv:1
 };
 
-/* ---------- Helpers ---------- */
 function gid(id){return document.getElementById(id)}
 const rint=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const rand=(a,b)=>Math.random()*(b-a)+a;
 const choice=a=>a[rint(0,a.length-1)];
-const dist2=(ax,ay,bx,by)=>(ax-bx)*(ax-bx)+(ay-by)*(ay-by);
-function log(s){const d=document.createElement('div'); d.textContent=s; logEl.prepend(d)}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function product(pid){return PRODUCTS.find(p=>p.id===pid)}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function log(s){const d=document.createElement('div'); d.textContent=s; logEl.prepend(d)}
 
-/* ---------- City gen ---------- */
+/* ======================
+   CITY GENERATION
+====================== */
+const taken = new Set();
 function free(c,r){
-  if(c<1||r<1||c>COLS-2||r>ROWS-2) return false;
+  if(c<1||r<1||c>GRID_COLS-2||r>GRID_ROWS-2) return false;
   return !taken.has(c+','+r);
 }
 function occupy(c,r){taken.add(c+','+r)}
 function place(kind, info={}){
-  for(let t=0;t<400;t++){
-    const c=rint(1,COLS-2), r=rint(1,ROWS-2);
+  for(let t=0;t<500;t++){
+    const c=rint(1,GRID_COLS-2), r=rint(1,GRID_ROWS-2);
     if(!free(c,r)) continue;
     occupy(c,r);
-    const id=buildings.length, x=c*CELL+CELL/2, y=r*CELL+CELL/2;
-    const b={id,kind,x,y,col:c,row:r,name: kind==='house' ? 'House '+id : info.name};
+    const id=buildings.length;
+    const b={id, kind, col:c, row:r, name: kind==='house' ? 'House '+id : info.name};
     if(kind==='biz'){
       b.type=info.type; b.owner=-1; b.hired=false; b.till=0; b.stock={}; b.sellerIdeal={};
       for(const pid of info.offers){
@@ -168,91 +184,198 @@ function place(kind, info={}){
 }
 function genCity(){
   for(let i=0;i<HOUSES;i++) place('house');
-  for(let i=0;i<SHOPS;i++){ const d=choice(CATALOG); place('biz',{type:d.type, name:`${d.type} #${i+1}`, offers:d.offers}) }
-  // citizens from random houses
+  for(let i=0;i<SHOPS;i++){ const d=choice(CATALOG); place('biz',{type:d.type,name:`${d.type} #${i+1}`,offers:d.offers}) }
+  // citizens
   const houseIds=buildings.filter(b=>b.kind==='house').map(b=>b.id);
   for(let i=0;i<POP;i++){
-    const homeId=choice(houseIds), home=buildings[homeId];
-    const a={
-      id:i,x:home.x,y:home.y,vx:0,vy:0,target:null,home:homeId,
-      sick:Math.random()<0.07, sickDays:rint(0,SICK_DAYS), wallet:rint(50,180),
-      priceIdeal:{}
-    };
-    for(const pr of PRODUCTS){ a.priceIdeal[pr.id]=+(pr.base*rand(0.75,1.1)).toFixed(2) }
-    citizens.push(a);
+    const h=choice(houseIds), bh=buildings[h];
+    const {x,y}=isoToScreen(bh.col,bh.row);
+    const c={id:i, col:bh.col,row:bh.row, x,y, vx:0,vy:0, target:null, home:h,
+      sick:Math.random()<0.07, sickDays:rint(0,SICK_DAYS), wallet:rint(50,180), priceIdeal:{}};
+    for(const pr of PRODUCTS){ c.priceIdeal[pr.id]=+(pr.base*rand(0.75,1.1)).toFixed(2) }
+    citizens.push(c);
   }
   // player
-  const ph=choice(houseIds), home=buildings[ph]; player.home=ph; player.x=home.x; player.y=home.y;
+  const ph=choice(houseIds), home=buildings[ph]; player.home=ph; player.col=home.col; player.row=home.row;
+  const ps=isoToScreen(home.col,home.row); player.x=ps.x; player.y=ps.y;
   for(const pr of PRODUCTS){ player.priceIdeal[pr.id]=+(pr.base*rand(0.85,1.1)).toFixed(2) }
 }
 genCity();
 
-/* ---------- Drawing ---------- */
-function drawGrid(){
-  ctx.strokeStyle=GRID; ctx.lineWidth=1; ctx.beginPath();
-  for(let c=0;c<=COLS;c++){ ctx.moveTo(c*CELL,0); ctx.lineTo(c*CELL,H) }
-  for(let r=0;r<=ROWS;r++){ ctx.moveTo(0,r*CELL); ctx.lineTo(W,r*CELL) }
-  ctx.stroke();
-}
-function drawBuildings(){
-  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='11px system-ui';
-  for(const b of buildings){
-    ctx.fillStyle=b.kind==='house'?HOUSE:BIZ;
-    ctx.fillRect(b.col*CELL+2,b.row*CELL+2,CELL-4,CELL-4);
-    if(b.kind==='biz'){
-      ctx.fillStyle='#d4e6ff'; ctx.fillText(b.type.split(' ')[0], b.x, b.y);
-      if(b.owner===-1) { /* no mark */ }
-      else { ctx.strokeStyle='#ffd66b'; ctx.strokeRect(b.col*CELL+4, b.row*CELL+4, CELL-8, CELL-8) }
+/* ======================
+   ISOMETRIC DRAWING
+====================== */
+function drawGround(){
+  // subtle checker ground
+  for(let r=0;r<GRID_ROWS;r++){
+    for(let c=0;c<GRID_COLS;c++){
+      const p=isoToScreen(c,r);
+      const dark=((c+r)&1)===0;
+      drawDiamond(p.x,p.y,TILE_W,TILE_H, dark? "#0e1730":"#0f1a36");
     }
   }
 }
-function drawAgents(){
-  for(const c of citizens){ ctx.beginPath(); ctx.fillStyle=c.sick?'#ff6c6c':'#62e3ff'; ctx.arc(c.x,c.y,4.5,0,Math.PI*2); ctx.fill() }
-  ctx.beginPath(); ctx.fillStyle=player.sick?'#ffb66b':'#ffe36b'; ctx.arc(player.x,player.y,6.5,0,Math.PI*2); ctx.fill()
+function drawDiamond(cx,cy,w,h,fill){
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-h/2);
+  ctx.lineTo(cx+w/2, cy);
+  ctx.lineTo(cx, cy+h/2);
+  ctx.lineTo(cx-w/2, cy);
+  ctx.closePath();
+  ctx.fillStyle=fill;
+  ctx.fill();
 }
-function render(){ ctx.clearRect(0,0,W,H); drawGrid(); drawBuildings(); drawAgents() }
 
-/* ---------- Hover & click ---------- */
-function buildingAt(px,py){
-  for(const b of buildings){ if(Math.abs(b.x-px)<=CELL/2 && Math.abs(b.y-py)<=CELL/2) return b }
-  return null;
-}
-cvs.addEventListener('mousemove',e=>{
-  const r=cvs.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
-  const b=buildingAt(x,y);
-  if(!b){ hoverEl.textContent=''; return }
-  if(b.kind==='house'){ hoverEl.textContent=`${b.name} (House)` }
-  else{
-    const offers=Object.keys(b.stock).map(pid=>{
-      const inv=b.stock[pid], ask=b.sellerIdeal[pid].toFixed(2); return `${product(pid).name}: inv ${inv}, ask ~$${ask}`
-    }).join(' · ');
-    const own = b.owner===-1? 'Unowned' : (b.owner===0? 'Owned by You' : 'Owned');
-    hoverEl.textContent=`${b.name} (${b.type}) — ${offers} — ${own}${b.hired?' · Worker hired':''}`;
+function drawBuilding(b){
+  const p=isoToScreen(b.col,b.row);
+  // base tile highlight
+  drawDiamond(p.x,p.y,TILE_W,TILE_H,"#14264a");
+  // extruded box (top + sides)
+  const top="#325b9b", left="#274978", right="#2b4f83";
+  // top
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y - TILE_H/2 - ELEV);
+  ctx.lineTo(p.x + TILE_W/2, p.y - ELEV);
+  ctx.lineTo(p.x, p.y + TILE_H/2 - ELEV);
+  ctx.lineTo(p.x - TILE_W/2, p.y - ELEV);
+  ctx.closePath(); ctx.fillStyle=top; ctx.fill();
+
+  // right face
+  ctx.beginPath();
+  ctx.moveTo(p.x + TILE_W/2, p.y - ELEV);
+  ctx.lineTo(p.x + TILE_W/2, p.y);
+  ctx.lineTo(p.x, p.y + TILE_H/2);
+  ctx.lineTo(p.x, p.y + TILE_H/2 - ELEV);
+  ctx.closePath(); ctx.fillStyle=right; ctx.fill();
+
+  // left face
+  ctx.beginPath();
+  ctx.moveTo(p.x - TILE_W/2, p.y - ELEV);
+  ctx.lineTo(p.x - TILE_W/2, p.y);
+  ctx.lineTo(p.x, p.y + TILE_H/2);
+  ctx.lineTo(p.x, p.y + TILE_H/2 - ELEV);
+  ctx.closePath(); ctx.fillStyle=left; ctx.fill();
+
+  // label
+  if(b.type){
+    ctx.fillStyle="#d7e7ff"; ctx.font="11px system-ui"; ctx.textAlign="center";
+    ctx.fillText(b.type.split(' ')[0], p.x, p.y - ELEV - 12);
   }
+  // owner outline
+  if(b.owner===0){
+    ctx.strokeStyle="#ffd66b"; ctx.lineWidth=1.5;
+    ctx.strokeRect(p.x - TILE_W/2 + 4, p.y - ELEV - TILE_H/2 + 4, TILE_W - 8, TILE_H - 8);
+  }
+}
+function drawHouse(h){
+  const p=isoToScreen(h.col,h.row);
+  drawDiamond(p.x,p.y,TILE_W,TILE_H,"#101e3e");
+  // small hut
+  const z=ELEV*0.7;
+  // top
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y - TILE_H/2 - z);
+  ctx.lineTo(p.x + TILE_W/2, p.y - z);
+  ctx.lineTo(p.x, p.y + TILE_H/2 - z);
+  ctx.lineTo(p.x - TILE_W/2, p.y - z);
+  ctx.closePath(); ctx.fillStyle="#2a3866"; ctx.fill();
+  // sides
+  ctx.fillStyle="#22305a";
+  ctx.beginPath();
+  ctx.moveTo(p.x + TILE_W/2, p.y - z);
+  ctx.lineTo(p.x + TILE_W/2, p.y);
+  ctx.lineTo(p.x, p.y + TILE_H/2);
+  ctx.lineTo(p.x, p.y + TILE_H/2 - z);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(p.x - TILE_W/2, p.y - z);
+  ctx.lineTo(p.x - TILE_W/2, p.y);
+  ctx.lineTo(p.x, p.y + TILE_H/2);
+  ctx.lineTo(p.x, p.y + TILE_H/2 - z);
+  ctx.closePath(); ctx.fill();
+
+  // player home halo
+  if(h.id===player.home){
+    ctx.strokeStyle="#6be6ff"; ctx.lineWidth=1.2;
+    ctx.strokeRect(p.x - TILE_W/2 + 3, p.y - z - TILE_H/2 + 3, TILE_W - 6, TILE_H - 6);
+  }
+}
+
+function drawBlob(x,y,r,body,shadow){
+  // drop shadow
+  ctx.globalAlpha=0.35;
+  ctx.beginPath(); ctx.ellipse(x, y+6, r*1.2, r*0.55, 0, 0, Math.PI*2); ctx.fillStyle=shadow; ctx.fill();
+  ctx.globalAlpha=1;
+  // soft sphere (radial)
+  const g=ctx.createRadialGradient(x-r*0.4,y-r*0.5, r*0.3, x,y,r);
+  g.addColorStop(0, "#ffffff");
+  g.addColorStop(0.15, body);
+  g.addColorStop(1, body);
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+}
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  drawGround();
+  // depth sort: by (row+col)
+  const sorted = [...buildings].sort((a,b)=>(a.row+a.col)-(b.row+b.col));
+  for(const b of sorted){
+    if(b.kind==='house') drawHouse(b); else drawBuilding(b);
+  }
+  // agents behind / in front
+  // citizens
+  for(const c of citizens){
+    const color = c.sick ? "#ff6c6c" : "#65e2ff";
+    drawBlob(c.x, c.y - 10, 6, color, "#000");
+  }
+  // player
+  drawBlob(player.x, player.y - 12, 8, player.sick?"#ffb36b":"#ffe36b", "#000");
+}
+
+/* ======================
+   INPUT (isometric pick)
+====================== */
+cvs.addEventListener('mousemove', e=>{
+  const r=cvs.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
+  const iso=screenToIso(x,y); const b=buildingAt(iso.col,iso.row);
+  if(!b){ hoverEl.textContent=""; return }
+  if(b.kind==='house'){ hoverEl.textContent=`${b.name} (House)`; return }
+  // biz
+  const offers=Object.keys(b.stock).map(pid=>{
+    const inv=b.stock[pid], ask=b.sellerIdeal[pid].toFixed(2);
+    return `${product(pid).name}: inv ${inv}, ask ~$${ask}`;
+  }).join(" · ");
+  const own = b.owner===-1? "Unowned" : (b.owner===0? "Owned by You":"Owned");
+  hoverEl.textContent = `${b.name} (${b.type}) — ${offers} — ${own}${b.hired?' · Worker hired':''}`;
 });
-cvs.addEventListener('click',e=>{
+
+cvs.addEventListener('click', e=>{
   if(phase!=='Planning') return;
   const r=cvs.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
-  const b=buildingAt(x,y); if(!b || b.kind!=='biz') return;
+  const iso=screenToIso(x,y); const b=buildingAt(iso.col,iso.row);
+  if(!b || b.kind!=='biz') return;
 
-  const slot = player.dest[0]==null?0: (player.dest[1]==null?1:-1);
+  const slot = player.dest[0]==null?0:(player.dest[1]==null?1:-1);
   if(slot===-1){ log('Both visits selected. Use Clear Visits to change.'); return }
   player.dest[slot]=b.id; (slot? v2El:v1El).textContent=`${b.name} (${b.type})`;
   visitsLeft = visitsMax - (player.dest.filter(v=>v!=null).length); visitsLeftEl.textContent=visitsLeft;
-
-  // Show business pane for buy/hire & shopping preview
-  pane.innerHTML=renderBizPane(b, slot);
-  bindBizPane(b, slot);
+  pane.innerHTML = renderBizPane(b, slot); bindBizPane(b, slot);
 });
 
-/* ---------- UI controls ---------- */
+function buildingAt(col,row){
+  return buildings.find(b=>b.col===col && b.row===row);
+}
+
+/* ======================
+   CONTROLS
+====================== */
 gid('clearBtn').onclick=()=>{
   player.dest=[null,null]; v1El.textContent='— (click a business)'; v2El.textContent='— (click a business)';
   visitsLeft=visitsMax; visitsLeftEl.textContent=visitsLeft; pane.innerHTML='';
 };
 gid('startBtn').onclick=startDay;
-gid('fastBtn').onclick=()=>{ speed = (speed===SPEEDS.fast?SPEEDS.normal:SPEEDS.fast); log(`Speed: ${speed===SPEEDS.fast?'Fast':'Normal'}`) };
-gid('skipBtn').onclick=()=>{ speed=SPEEDS.skip; log('Skipping…') };
+gid('fastBtn').onclick=()=>{ speed=(speed===SPEEDS.fast?SPEEDS.normal:SPEEDS.fast); log(`Speed: ${speed===SPEEDS.fast?'Fast':'Normal'}`) }
+gid('skipBtn').onclick=()=>{ speed=SPEEDS.skip; log('Skipping…') }
 gid('expandBtn').onclick=()=>{
   const cost = 150 + (player.houseLv-1)*100;
   if(player.money < cost){ log('Not enough money to expand house.'); return }
@@ -260,167 +383,115 @@ gid('expandBtn').onclick=()=>{
   log(`House expanded to Lv ${player.houseLv}. Infection risk slightly reduced and negotiation improved.`);
 };
 
-/* ---------- Planning → Day ---------- */
+/* ======================
+   DAY / PHASE FLOW
+====================== */
 function startDay(){
   if(running) return;
-  // needs from yesterday might shrink visits
+  // needs gate
   visitsMax = (player.needs.foodOk && player.needs.funOk) ? 2 : 1;
   visitsLeft = visitsMax; visitsMaxEl.textContent=visitsMax; visitsLeftEl.textContent=visitsLeft;
 
   if(player.sick){
     player.dest=[player.home, player.home]; v1El.textContent='(Sick) Stay Home'; v2El.textContent='(Sick) Stay Home';
     w1El.checked=false; w2El.checked=false; player.work=[false,false];
-  }else{
+  } else {
     for(let i=0;i<visitsMax;i++) if(player.dest[i]==null){
-      const ids=buildings.filter(b=>b.kind==='biz').map(b=>b.id); const id=choice(ids); player.dest[i]=id;
-      (i? v2El:v1El).textContent=buildings[id].name;
+      const ids=buildings.filter(b=>b.kind==='biz').map(b=>b.id);
+      const id=choice(ids); player.dest[i]=id; (i? v2El:v1El).textContent=buildings[id].name;
     }
-    // If only 1 visit max, null the second
     if(visitsMax===1){ player.dest[1]=null; v2El.textContent='— (locked; meet your needs)'; w2El.checked=false }
     player.work=[!!w1El.checked, !!w2El.checked && visitsMax===2];
   }
 
-  // citizens plan
+  // citizens pick
   for(const a of citizens){
-    if(a.sick){ a.plan=[a.home, a.home] }
-    else{
-      const ids=buildings.filter(b=>b.kind==='biz').map(b=>b.id);
-      a.plan=[choice(ids), choice(ids)]
-    }
+    if(a.sick){ a.plan=[a.home,a.home] }
+    else{ const ids=buildings.filter(b=>b.kind==='biz').map(b=>b.id); a.plan=[choice(ids),choice(ids)] }
   }
 
   tPhase=0; lastTs=0; speed=SPEEDS.normal; phase='Visit 1'; phaseEl.textContent=phase; running=true;
-  prepPhase(0);
-  log(`Day ${day} started.`);
+  prepPhase(0); log(`Day ${day} started.`);
 }
-
 function prepPhase(k){
-  // aim everyone
-  aimTo(player, destPoint(player, k));
-  for(const a of citizens){ aimTo(a, destPoint(a, k)) }
-
-  // open pane if you’re going to a biz
-  pane.innerHTML='';
-  const destId=player.dest[k];
-  if(destId!=null){
-    const b=buildings[destId];
-    if(b.kind==='biz'){ pane.innerHTML=renderShopPane(b, k); bindShopButtons(b, k) }
-  }
+  aimTo(player, pointOf(player, k));
+  citizens.forEach(a=>aimTo(a, pointOf(a, k)));
+  const destId=player.dest[k]; pane.innerHTML='';
+  if(destId!=null){ const b=buildings[destId]; if(b.kind==='biz'){ pane.innerHTML=renderShopPane(b,k); bindShopButtons(b,k) } }
 }
-
-function destPoint(agent,k){
+function pointOf(agent,k){
   const id=(agent===player? player.dest[k] : agent.plan[k]);
-  if(id==null) return {x:buildings[player.home].x, y:buildings[player.home].y};
-  const b=buildings[id]; return {x:b.x, y:b.y}
+  const target = (id==null) ? buildings[player.home] : buildings[id];
+  return isoToScreen(target.col,target.row);
 }
 function aimTo(agent, pt){
   const dx=pt.x-agent.x, dy=pt.y-agent.y, steps=(PHASE_MS/16.7);
   agent.vx=dx/steps; agent.vy=dy/steps; agent.target=pt;
 }
 
-/* ---------- Economy ---------- */
+/* ======================
+   ECONOMY (same logic)
+====================== */
 function midPrice(buyerIdeal,sellerIdeal,edge=0){
-  // House comfort gives slight edge to you: move mid a bit toward buyer
   const p=(buyerIdeal+sellerIdeal)/2;
   return Math.round(p - edge*(sellerIdeal-buyerIdeal));
 }
+function negotiationEdge(){
+  let edge = 0.03 + (player.houseLv-1)*0.02;
+  if(player.needs.grumpy) edge -= 0.02;
+  return clamp(edge, 0, 0.15);
+}
+function bizCost(b){
+  let val=0; for(const pid of Object.keys(b.stock)){ val += b.stock[pid]*product(pid).base }
+  return Math.max(120, Math.round(val*1.8));
+}
 function renderBizPane(b,slot){
   const own = b.owner===0;
-  const buyCost = bizCost(b);
-  const hireRow = own ? `<div>Worker: <strong>${b.hired?'Hired':'None'}</strong> 
-      <button id="hireBtn">${b.hired?'Fire (no cost)':'Hire ($20/day)'}</button></div>` : '';
+  const buyCost=bizCost(b);
+  const hireRow = own ? `<div>Worker: <strong>${b.hired?'Hired':'None'}</strong> <button id="hireBtn">${b.hired?'Fire (no cost)':'Hire ($20/day)'}</button></div>` : '';
   return `
   <div class="slot">
-    <div><strong>${b.name}</strong> <span class="badge b-biz">${b.type}</span> — ${b.owner===-1?'Unowned':(own?'Owned by You':'Owned')}</div>
+    <div><strong>${b.name}</strong> — ${b.owner===-1?'Unowned':(own?'Owned by You':'Owned')}</div>
     ${!own && b.owner===-1 ? `<button id="buyBtn">Buy ($${buyCost})</button>` : ''}
     ${hireRow}
-    <div style="margin-top:6px"><em>Preview stock & midpoint prices:</em></div>
+    <div style="margin-top:6px"><em>Stock & midpoint:</em></div>
     <ul style="list-style:none;padding-left:14px;text-align:left">
       ${Object.keys(b.stock).map(pid=>{
         const p=product(pid), you=player.priceIdeal[pid], ask=b.sellerIdeal[pid], edge=negotiationEdge();
         const price=midPrice(you,ask,edge);
-        return `<li>${p.name}: inv <strong>${b.stock[pid]}</strong> · your ideal $${you.toFixed(2)} · seller $${ask.toFixed(2)} → <strong>$${price}</strong></li>`
+        return `<li>${p.name}: inv <strong>${b.stock[pid]}</strong> · you $${you.toFixed(2)} · seller $${ask.toFixed(2)} → <strong>$${price}</strong></li>`
       }).join('') || '<li>Sold out.</li>'}
     </ul>
-    <div style="font-size:12px;opacity:.85">Price = midpoint between your ideal and seller’s ideal (Primer-style). House level improves your edge slightly.</div>
   </div>`;
 }
 function bindBizPane(b,slot){
   const buy=gid('buyBtn'); if(buy){ buy.onclick=()=>{ const cost=bizCost(b); if(player.money<cost){log('Not enough money.');return} player.money-=cost; b.owner=0; updateTop(); log(`You bought ${b.name}.`); pane.innerHTML=renderBizPane(b,slot); bindBizPane(b,slot)} }
   const hire=gid('hireBtn'); if(hire){ hire.onclick=()=>{ b.hired=!b.hired; log(`${b.hired?'Hired':'Fired'} worker at ${b.name}.`); pane.innerHTML=renderBizPane(b,slot); bindBizPane(b,slot)} }
 }
-function bizCost(b){
-  // base on stock value * markup
-  let val=0; for(const pid of Object.keys(b.stock)){ val += b.stock[pid]*product(pid).base }
-  val = Math.max(120, Math.round(val*1.8));
-  return val;
-}
-function negotiationEdge(){
-  // tiny drift toward your price: 0.0..0.15 (houseLv + not-grumpy)
-  let edge = 0.03 + (player.houseLv-1)*0.02;
-  if(player.needs.grumpy) edge -= 0.02;
-  return clamp(edge, 0, 0.15);
-}
-function trySaleAtShop(shop, buyer, playerWorking=false){
-  if(!shop || shop.kind!=='biz') return false;
-  const options=Object.keys(shop.stock).filter(pid=>shop.stock[pid]>0);
-  if(options.length===0) return false;
-
-  // pick the item buyer values most
-  options.sort((a,b)=> (buyer.priceIdeal[a]||9999)-(buyer.priceIdeal[b]||9999));
-  const pid=options[0], p=product(pid);
-  const buyerIdeal=buyer.priceIdeal[pid] ?? p.base;
-  const sellerIdeal=shop.sellerIdeal[pid] ?? p.base*1.3;
-  const price=midPrice(buyerIdeal, sellerIdeal, buyer===player?negotiationEdge():0);
-
-  const hasMoney = (buyer===player? player.money : buyer.wallet) >= price;
-  if(!hasMoney) return false;
-
-  // transact
-  if(buyer===player){
-    player.money -= price; player.inventory[pid]=(player.inventory[pid]||0)+1; updateTop();
-  }else{
-    buyer.wallet -= price;
-  }
-  shop.stock[pid]--; shop.till += price;
-
-  // wages: if player Working here now → they earn 100% of sales they directly trigger
-  if(playerWorking) { player.money += price; updateTop() }
-
-  log(`${buyer===player?'You':'A customer'} bought ${p.name} @ ${shop.name} for $${price}.`);
-
-  // adaptive price
-  if(shop.stock[pid]<=1) shop.sellerIdeal[pid]*=1.02;
-  return true;
-}
 function renderShopPane(b,k){
   const working = !!player.work[k];
   return `
-    <div class="slot">
-      <div><strong>At ${b.name}</strong> <span class="badge b-biz">${b.type}</span> ${b.owner===0?'· <span class="k">Your business</span>':''} ${working? '· <strong>Working</strong>' : '· Browsing'}</div>
-      <div style="margin:6px 0">Money: $${Math.floor(player.money)} · Inventory: ${invString()}</div>
-      <ul style="list-style:none;padding-left:14px;text-align:left">
-        ${Object.keys(b.stock).map(pid=>{
-          const p=product(pid), you=player.priceIdeal[pid], ask=b.sellerIdeal[pid], edge=negotiationEdge();
-          const price=midPrice(you,ask,edge);
-          return `<li>${p.name}: inv <strong>${b.stock[pid]}</strong> · you $${you.toFixed(2)} · seller $${ask.toFixed(2)} → <strong>$${price}</strong> <button data-buy="${pid}" ${b.stock[pid]<=0?'disabled':''}>Buy</button></li>`
-        }).join('') || '<li>Sold out.</li>'}
-      </ul>
-      <div style="font-size:12px;opacity:.85">If you work here this phase, you earn 100% of sales you cause. If this shop is yours and has a worker, you earn 50% of their sales (owner cut).</div>
-    </div>
-  `;
+  <div class="slot">
+    <div><strong>At ${b.name}</strong> ${b.owner===0?'· Your business':''} ${working? '· Working' : '· Browsing'}</div>
+    <div style="margin:6px 0">Money: $${Math.floor(player.money)} · Inventory: ${invString()}</div>
+    <ul style="list-style:none;padding-left:14px;text-align:left">
+      ${Object.keys(b.stock).map(pid=>{
+        const p=product(pid), you=player.priceIdeal[pid], ask=b.sellerIdeal[pid], edge=negotiationEdge();
+        const price=midPrice(you,ask,edge);
+        return `<li>${p.name}: inv <strong>${b.stock[pid]}</strong> · you $${you.toFixed(2)} · seller $${ask.toFixed(2)} → <strong>$${price}</strong> <button data-buy="${pid}" ${b.stock[pid]<=0?'disabled':''}>Buy</button></li>`
+      }).join('') || '<li>Sold out.</li>'}
+  </ul><div style="font-size:12px;opacity:.85">Work = you earn 100% of your sales. Owned+Worker = you get 50% of their sales.</div></div>`;
 }
 function bindShopButtons(b,k){
   pane.querySelectorAll('button[data-buy]').forEach(btn=>{
     btn.onclick=()=>{
       const pid=btn.getAttribute('data-buy');
-      // do a targeted buy using current mid price
       if(b.stock[pid]<=0){ log('Out of stock.'); return }
       const p=product(pid), you=player.priceIdeal[pid], ask=b.sellerIdeal[pid], edge=negotiationEdge();
       const price=midPrice(you,ask,edge);
       if(player.money<price){ log(`Not enough money for ${p.name} ($${price}).`); return }
       player.money-=price; player.inventory[pid]=(player.inventory[pid]||0)+1; b.stock[pid]--; b.till+=price;
-      if(player.work[k]){ player.money+=price } // you worked → you get the sale
+      if(player.work[k]){ player.money+=price }
       if(b.stock[pid]<=1) b.sellerIdeal[pid]*=1.02;
       updateTop(); pane.innerHTML=renderShopPane(b,k); bindShopButtons(b,k);
       log(`You bought ${p.name} @ ${b.name} for $${price}.`);
@@ -433,66 +504,54 @@ function invString(){
   return keys.map(k=>`${product(k).name}×${player.inventory[k]}`).join(', ');
 }
 
-/* ---------- Needs ---------- */
+/* ======================
+   NEEDS & INFECTION
+====================== */
 function consumeNeeds(){
-  // require 1 Food and 1 Fun per day
   let foodOK=false, funOK=false;
-
   if((player.inventory.food||0)>0){ player.inventory.food--; foodOK=true }
   if((player.inventory.book||0)>0){ player.inventory.book--; funOK=true }
   else if((player.inventory.toy||0)>0){ player.inventory.toy--; funOK=true }
   else if((player.inventory.coffee||0)>0){ player.inventory.coffee--; funOK=true }
-
   player.needs.foodOk=foodOK; player.needs.funOk=funOK; player.needs.grumpy=!(foodOK&&funOK);
   nfEl.className=foodOK?'ok':'bad'; nfEl.textContent=foodOK?'OK':'NEEDED';
   neEl.className=funOK?'ok':'bad'; neEl.textContent=funOK?'OK':'NEEDED';
 }
+function infectionMultiplier(){ return Math.max(0.5, 1 - 0.08*(player.houseLv-1)) }
 
-/* ---------- Infection ---------- */
-function infectionMultiplier(){
-  // House gives small protection: each level after 1 reduces risk 8%, min 50% of base
-  const mult = Math.max(0.5, 1 - 0.08*(player.houseLv-1));
-  return mult;
-}
-
-/* ---------- Sim loop ---------- */
+/* ======================
+   SIM LOOP
+====================== */
 function step(ts){
   if(!running){ render(); requestAnimationFrame(step); return }
   if(!lastTs) lastTs=ts;
   let dt=(ts-lastTs)/1000; lastTs=ts; dt*=speed;
 
-  // move
   moveAgent(player,dt);
-  for(const a of citizens) moveAgent(a,dt);
+  citizens.forEach(a=>moveAgent(a,dt));
 
-  // infection checks ~ once per second granularity using dt
+  // infection checks (Primer-like proximity)
   infCheck(player, citizens, dt);
-  for(const c of citizens) infCheck(c, [player,...citizens], dt);
+  citizens.forEach(c=>infCheck(c, [player,...citizens], dt));
 
-  // arrivals & shopping
+  // commerce each phase
   const k = (phase==='Visit 1'?0:(phase==='Visit 2'?1:null));
-  const working = (k!=null) && player.work[k];
   if(k!=null){
-    // owned shops with workers: simulate worker-driven sales → owner gets 50%
     simulateWorkerSales(k);
-    // NPCs buy on arrival chance
     citizens.forEach(a=>maybeBuyWhenArrive(a,k,false));
-    maybeBuyWhenArrive(player,k,working);
+    maybeBuyWhenArrive(player,k,!!player.work[k]);
   }
 
-  // timer end
   tPhase += dt*1000;
   if(tPhase>=PHASE_MS || speed===SPEEDS.skip){
-    // adapt prices down slightly if plenty left
-    for(const b of buildings) if(b.kind==='biz'){
-      for(const pid of Object.keys(b.stock)) if(b.stock[pid]>8) b.sellerIdeal[pid]*=0.99;
-    }
+    // slight relaxation
+    for(const b of buildings) if(b.kind==='biz') for(const pid of Object.keys(b.stock)) if(b.stock[pid]>8) b.sellerIdeal[pid]*=0.99;
+
     if(phase==='Visit 1' && visitsMax===2){
       phase='Visit 2'; phaseEl.textContent=phase; tPhase=0; prepPhase(1);
     }else{
-      // return home and finish day
       phase='Returning'; phaseEl.textContent=phase;
-      aimTo(player, {x:buildings[player.home].x, y:buildings[player.home].y});
+      const home=buildings[player.home]; aimTo(player, isoToScreen(home.col,home.row));
       endOfDay();
     }
     if(speed===SPEEDS.skip) speed=SPEEDS.normal;
@@ -506,53 +565,47 @@ function moveAgent(a,dt){
 }
 function infCheck(a, others, dt){
   if(a.sick) return;
-  // approximate: roll chance proportional to dt
   const baseRate = (a===player? INF_BASE*infectionMultiplier(): INF_BASE);
-  let prob = 1 - Math.pow(1 - baseRate, dt); // convert per-sec rate to dt
+  const prob = 1 - Math.pow(1 - baseRate, dt);
   for(const o of others){
     if(!o.sick) continue;
-    if(dist2(a.x,a.y,o.x,o.y) <= INF_RAD*INF_RAD){
-      if(Math.random() < prob){
+    const dx=a.x-o.x, dy=a.y-o.y, d2=dx*dx+dy*dy;
+    if(d2 <= INF_RAD*INF_RAD){
+      if(Math.random()<prob){
         a.sick=true; a.sickDays=SICK_DAYS;
         if(a===player){ statusEl.textContent=`Sick (${a.sickDays}d)`; statusEl.className='accent bad'; log('You became sick.') }
-        break;
       }
+      break;
     }
   }
 }
 function maybeBuyWhenArrive(agent,k,playerWorking){
   const id=(agent===player? player.dest[k] : agent.plan[k]); if(id==null) return;
   const b=buildings[id]; if(!b || b.kind!=='biz') return;
-  const arrived = dist2(agent.x,agent.y,b.x,b.y) < 6;
+  const target=isoToScreen(b.col,b.row);
+  const arrived = ((agent.x-target.x)**2 + (agent.y-target.y)**2) < 25;
   if(!arrived) return;
 
   if(agent!==player){
-    // ~45% chance to attempt a buy once
-    if(!agent.didBuy) { agent.didBuy=true; trySaleAtShop(b, agent, false) }
-  }else{
-    // player may choose to buy via pane buttons; but auto one free browse chance
-    if(!agent.didAutoBrowse){ agent.didAutoBrowse=true; /* no auto-buy to avoid unwanted spend */ }
+    if(!agent.didBuy && Math.random()<0.45){
+      trySaleAtShop(b, agent, false); agent.didBuy=true;
+    }
   }
 }
 function simulateWorkerSales(k){
-  // For each OWNED shop with worker hired, run a few random customer attempts; owner earns 50% of successful sales
   const phaseShops = buildings.filter(b=>b.kind==='biz' && b.owner===0 && b.hired);
   for(const shop of phaseShops){
-    const attempts = rint(1,3); // modest footfall per phase
+    const attempts = rint(1,3);
     for(let i=0;i<attempts;i++){
-      // synthesize a customer using average ideals
       const cust = {wallet:rint(30,140), priceIdeal:{}};
       for(const pr of PRODUCTS){ cust.priceIdeal[pr.id]=pr.base*rand(0.85,1.15) }
-      // pick cheapest available
       const pick = Object.keys(shop.stock).filter(pid=>shop.stock[pid]>0);
       if(pick.length===0) break;
       pick.sort((a,b)=> (cust.priceIdeal[a]||999)-(cust.priceIdeal[b]||999));
       const pid=pick[0], p=product(pid);
       const price = Math.round((cust.priceIdeal[pid] + shop.sellerIdeal[pid])/2);
       if(cust.wallet < price) continue;
-      // execute sale
       shop.stock[pid]--; shop.till+=price;
-      // owner cut 50%
       const cut = Math.floor(price*0.5);
       player.money += cut; updateTop();
       log(`Worker sold ${p.name} @ ${shop.name} for $${price}. You earned $${cut} (owner cut).`);
@@ -561,49 +614,71 @@ function simulateWorkerSales(k){
   }
 }
 
-/* ---------- End of day ---------- */
+/* ======================
+   TRANSACTIONS & WRAP
+====================== */
+function trySaleAtShop(shop, buyer, playerWorking){
+  const options=Object.keys(shop.stock).filter(pid=>shop.stock[pid]>0);
+  if(options.length===0) return false;
+  options.sort((a,b)=> (buyer.priceIdeal[a]||9999)-(buyer.priceIdeal[b]||9999));
+  const pid=options[0], p=product(pid);
+  const buyerIdeal=buyer.priceIdeal[pid] ?? p.base;
+  const sellerIdeal=shop.sellerIdeal[pid] ?? p.base*1.3;
+  const price=midPrice(buyerIdeal, sellerIdeal, buyer===player?negotiationEdge():0);
+  const hasMoney = (buyer===player? player.money : buyer.wallet) >= price;
+  if(!hasMoney) return false;
+
+  if(buyer===player){
+    player.money -= price; player.inventory[pid]=(player.inventory[pid]||0)+1; updateTop();
+  }else{
+    buyer.wallet -= price;
+  }
+  shop.stock[pid]--; shop.till+=price;
+  if(playerWorking) { player.money += price; updateTop() }
+  if(shop.stock[pid]<=1) shop.sellerIdeal[pid]*=1.02;
+  log(`${buyer===player?'You':'A customer'} bought ${p.name} @ ${shop.name} for $${price}.`);
+  return true;
+}
+
 function endOfDay(){
-  // consume needs at night
+  // needs
   consumeNeeds();
-
-  // sickness ticks
+  // sickness tick
   if(player.sick){ player.sickDays--; if(player.sickDays<=0){ player.sick=false; statusEl.textContent='Healthy'; statusEl.className='accent ok'; log('You recovered!') } else { statusEl.textContent=`Sick (${player.sickDays}d)` } }
-
-  // worker wages (flat 20 if hired anywhere)
+  // wages
   const wages = buildings.filter(b=>b.kind==='biz' && b.owner===0 && b.hired).length * 20;
   if(wages>0){ player.money -= wages; updateTop(); log(`Paid worker wages: $${wages}.`) }
 
-  // next day
+  // next
   day++; dayEl.textContent=day; phase='Planning'; phaseEl.textContent=phase; running=false;
-  // reset flags
-  citizens.forEach(a=>{ a.didBuy=false }); player.didAutoBrowse=false;
-  // reset visits UI
+  citizens.forEach(a=>{ a.didBuy=false });
   player.dest=[null,null]; v1El.textContent='— (click a business)'; v2El.textContent='— (click a business)';
   visitsMax = (player.needs.foodOk && player.needs.funOk)? 2 : 1;
   visitsLeft=visitsMax; visitsMaxEl.textContent=visitsMax; visitsLeftEl.textContent=visitsLeft;
 
-  // slight nightly restock and price relax
+  // restock / price relax
   for(const b of buildings) if(b.kind==='biz'){
     for(const pid of Object.keys(b.stock)){ if(b.stock[pid]<8) b.stock[pid]+=rint(0,2) }
     for(const pid of Object.keys(b.sellerIdeal)){ b.sellerIdeal[pid]*=rand(0.98,1.02) }
   }
 
-  log(`Day ${day-1} ended. Needs for next day — Food & Fun. Plan wisely.`);
+  log(`Day ${day-1} ended. Meet Food & Fun tomorrow to keep two visits.`);
 }
 
-/* ---------- Top bar ---------- */
-function updateTop(){
-  moneyEl.textContent=Math.floor(player.money);
-  houseLvEl.textContent=player.houseLv;
-}
+/* ======================
+   TOP BAR, BUTTONS
+====================== */
+function updateTop(){ moneyEl.textContent=Math.floor(player.money); houseLvEl.textContent=player.houseLv }
 
-/* ---------- Kick off ---------- */
+/* ======================
+   INIT
+====================== */
 requestAnimationFrame(step);
 render();
 
-/* ---------- Shop Pane during planning ---------- */
-function renderBizPane(b, slot){ return renderShopPane(b, slot) } // reuse
-function bindBizPane(b, slot){ bindShopButtons(b, slot); /* plus buy/hire handled in renderBizPane during planning */ }
+/* Re-bindable buy/hire during planning */
+function renderBizPane(b, slot){ return renderShopPane(b, slot) }
+function bindBizPane(b, slot){ bindShopButtons(b, slot); const buy=gid('buyBtn'); if(buy){ buy.onclick=()=>{ const cost=bizCost(b); if(player.money<cost){log('Not enough money.');return} player.money-=cost; b.owner=0; updateTop(); log(`You bought ${b.name}.`); pane.innerHTML=renderBizPane(b,slot); bindBizPane(b,slot)} } const hire=gid('hireBtn'); if(hire){ hire.onclick=()=>{ b.hired=!b.hired; log(`${b.hired?'Hired':'Fired'} worker at ${b.name}.`); pane.innerHTML=renderBizPane(b,slot); bindBizPane(b,slot)} } }
 
 </script>
 </body>
