@@ -86,9 +86,7 @@
   <div id="interiorCard">
     <div id="interiorTop">
       <div id="interiorTitle">Inside: <span id="interiorName"></span></div>
-      <div>
-        <button id="leaveStoreBtn">Leave</button>
-      </div>
+      <div><button id="leaveStoreBtn">Leave</button></div>
     </div>
     <canvas id="interior" width="840" height="420"></canvas>
     <div id="sellerList"></div>
@@ -266,8 +264,13 @@ function genCity(){
   for(let i=0;i<POP;i++){
     const h=choice(houseIds), bh=buildings[h];
     const {x,y}=isoToScreen(bh.col,bh.row);
-    const c={id:i, col:bh.col,row:bh.row, x,y, vx:0,vy:0, target:null, home=h,
-      sick:Math.random()<0.03, sickDays:rint(0,SICK_DAYS), wallet:rint(50,180), priceIdeal:{}};
+    const c={
+      id:i,
+      col:bh.col,row:bh.row, x,y, vx:0,vy:0, target:null,
+      home: h,                    // <-- fixed (property, not assignment)
+      sick:Math.random()<0.03, sickDays:rint(0,SICK_DAYS),
+      wallet:rint(50,180), priceIdeal:{}
+    };
     for(const pr of PRODUCTS){ c.priceIdeal[pr.id]=+(pr.base*rand(0.75,1.1)).toFixed(2) }
     citizens.push(c);
   }
@@ -422,7 +425,6 @@ function startDay(){
   refreshNeedsFromInventory();
 
   // Enforce the rule: one FOOD store and one FUN store
-  // (unless sick & not forgetting; then home-home; if sick & "forget", still enforce)
   const foodBiz = pickAnyStoreOffering(FOOD_IDS);
   const funBiz  = pickAnyStoreOffering(FUN_IDS);
 
@@ -431,22 +433,20 @@ function startDay(){
     v1El.textContent='(Sick) Stay Home'; v2El.textContent='(Sick) Stay Home';
     player.work=[false,false]; w1El.checked=false; w2El.checked=false;
   } else {
-    // If the player pre-picked, we’ll correct to satisfy the rule.
+    // If the player pre-picked, correct to satisfy the rule.
     let d0 = player.dest[0], d1 = player.dest[1];
-    const types = id => (id==null)?null:buildings[id].offersSet || new Set(Object.keys(buildings[id].stock));
-    // helper flags
-    const isFood = id => id!=null && intersects(types(id), FOOD_IDS);
-    const isFun  = id => id!=null && intersects(types(id), FUN_IDS);
 
-    // build offersSet lazily
+    // build offersSet lazily for quick checks
     for(const b of buildings) if(b.kind==='biz' && !b.offersSet){
       b.offersSet = new Set(Object.keys(b.stock));
     }
+    const isFood = id => id!=null && intersects(buildings[id].offersSet, FOOD_IDS);
+    const isFun  = id => id!=null && intersects(buildings[id].offersSet, FUN_IDS);
 
     if(!isFood(d0) && !isFood(d1)) d0 = foodBiz ?? d0 ?? d1;
     if(!isFun(d0)  && !isFun(d1))  d1 = funBiz  ?? d1 ?? d0;
 
-    // If still missing (rare), force-pick
+    // Force-pick if still missing
     if(!isFood(d0) && !isFood(d1)) d0 = foodBiz ?? d0;
     if(!isFun(d0)  && !isFun(d1))  d1 = funBiz  ?? d1;
 
@@ -456,7 +456,7 @@ function startDay(){
     player.work=[!!w1El.checked, !!w2El.checked];
   }
 
-  // visits available (needs can still limit to 1; but planner sets the two categories regardless)
+  // visits available (needs can still limit to 1)
   visitsMax = (player.needs.foodOk && player.needs.funOk) ? 2 : 1;
   visitsLeft = Math.min(visitsMax, player.dest.filter(v=>v!=null).length);
   visitsMaxEl.textContent=visitsMax; visitsLeftEl.textContent=visitsLeft;
@@ -467,7 +467,6 @@ function startDay(){
       a.plan=[a.home, a.home];
     } else {
       const ids=buildings.filter(b=>b.kind==='biz').map(b=>b.id);
-      // They’ll also try to mix food/fun if possible
       a.plan=[ pickAnyStoreOffering(FOOD_IDS, ids) ?? choice(ids),
                pickAnyStoreOffering(FUN_IDS,  ids) ?? choice(ids) ];
     }
@@ -492,7 +491,7 @@ function prepPhase(k){
   citizens.forEach(a=>aimTo(a, pointOf(a, k)));
   closeInterior(true);
   const destId=player.dest[k]; pane.innerHTML='';
-  if(destId!=null){ const b=buildings[destId]; if(b.kind==='biz'){ pane.innerHTML=renderShopPane(b,k); bindShopButtons(b,k) } }
+  if(destId!=null){ const b=buildings[destId]; if(b.kind==='biz'){ pane.innerHTML=renderBizPane(b,k); bindBizPane(b,k) } }
 }
 function pointOf(agent,k){
   const id=(agent===player? player.dest[k] : agent.plan[k]);
