@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pandemic City — Isometric + Sellers + Return Home</title>
+<title>Pandemic City — Isometric + Personalities + Food/Fun Rule</title>
 <style>
   :root { --w: 900px; --h: 560px; }
   *{box-sizing:border-box}
@@ -28,22 +28,19 @@
     position:fixed; inset:0; display:none; align-items:center; justify-content:center;
     background:rgba(6,10,20,.75); z-index:9999; padding:12px;
   }
-  #interiorCard{
-    width:min(860px, 96vw); background:#0f1424; border:1px solid #2a3b67; border-radius:14px; padding:10px;
-  }
+  #interiorCard{ width:min(860px, 96vw); background:#0f1424; border:1px solid #2a3b67; border-radius:14px; padding:10px; }
   #interiorTop{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px}
   #interiorTitle{font-weight:600}
   #interior{width:100%; height:420px; background:#0e1322; border:1px solid #243458; border-radius:10px}
   #sellerList{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
-  .sellerCard{
-    background:#111a33; border:1px solid #26407a; border-radius:10px; padding:8px; min-width:220px; flex:1;
-  }
+  .sellerCard{ background:#111a33; border:1px solid #26407a; border-radius:10px; padding:8px; min-width:220px; flex:1; }
   .sellerCard h4{margin:2px 0 6px}
   .mini{font-size:12px; opacity:.9}
+  .badge{display:inline-block; padding:2px 6px; border-radius:8px; border:1px solid #2f4475; font-size:12px; margin-left:6px}
 </style>
 </head>
 <body>
-<h1>Pandemic City — Isometric + Sellers + Return Home</h1>
+<h1>Pandemic City — Isometric + Personalities + Food/Fun Rule</h1>
 
 <div id="top">
   <div class="pill">Day: <span id="day" class="accent">1</span></div>
@@ -124,7 +121,7 @@ function screenToIso(sx,sy){
    GAME CONSTANTS
 ========================= */
 const PHASE_MS = 11000;
-const RETURN_MS = 3000;          // time to visibly walk home
+const RETURN_MS = 3000;          // walk-home visual window
 const INF_BASE = 0.01;
 const INF_RAD  = 16;
 const SICK_DAYS= 7;
@@ -134,6 +131,7 @@ const SHOPS    = 26;
 const SPEEDS   = {normal:1,fast:4,skip:999};
 const SICK_FORGET_PROB = 0.25;   // sick NPCs may still go out
 
+// product catalog
 const PRODUCTS=[
   {id:"food",name:"Food",base:10, need:"food"},
   {id:"med",name:"Medicine",base:26},
@@ -143,16 +141,37 @@ const PRODUCTS=[
   {id:"shirt",name:"Shirt",base:30},
   {id:"gadget",name:"Gadget",base:85},
 ];
+// store types
 const CATALOG=[
-  {type:"Grocery", offers:["food"]},
+  {type:"Grocery", offers:["food"]},                   // FOOD
   {type:"Pharmacy", offers:["med"]},
-  {type:"Cafe", offers:["coffee"]},
-  {type:"Bookstore", offers:["book"]},
-  {type:"Toy Shop", offers:["toy"]},
+  {type:"Cafe", offers:["coffee"]},                    // FUN
+  {type:"Bookstore", offers:["book"]},                 // FUN
+  {type:"Toy Shop", offers:["toy"]},                   // FUN
   {type:"Clothing", offers:["shirt"]},
   {type:"Electronics", offers:["gadget"]},
-  {type:"Market", offers:["food","coffee","toy"]},
+  {type:"Market", offers:["food","coffee","toy"]},     // BOTH (counts as either)
   {type:"Outlet", offers:["shirt","gadget"]},
+];
+const FUN_IDS = new Set(["coffee","book","toy"]);
+const FOOD_IDS = new Set(["food"]);
+
+/* =========================
+   SELLER PERSONALITIES
+========================= */
+const PERSONAS = [
+  {id:"friendly",  title:"Friendly",  color:"#7ee6a5", desc:"gives small breaks",
+   askMul:0.95, edgeBonus:+0.02},
+  {id:"haggler",   title:"Haggler",   color:"#ffd37e", desc:"starts high, tough negotiator",
+   askMul:1.10, edgeBonus:-0.01},
+  {id:"gouger",    title:"Gouger",    color:"#ff9898", desc:"surges when stock is low",
+   askMul:1.05, lowStockMarkup:0.20},
+  {id:"steady",    title:"Steady",    color:"#9ec9ff", desc:"fair & consistent",
+   askMul:1.00},
+  {id:"impulsive", title:"Impulsive", color:"#caa8ff", desc:"prices wobble",
+   askMul:1.00, jitter:0.08},
+  {id:"bulk",      title:"Bulk",      color:"#a8ffd1", desc:"cheaper with plenty stock",
+   askMul:1.05, bulkDiscount:0.06}, // applies when stock high
 ];
 
 /* =========================
@@ -180,7 +199,7 @@ const player={
   sick:false,sickDays:0, money:200,
   priceIdeal:{}, inventory:{}, dest:[null,null], work:[false,false],
   needs:{foodOk:true, funOk:true, grumpy:false}, houseLv:1,
-  inStore:null, currentPhaseIndex:null, // interior mode
+  inStore:null, currentPhaseIndex:null,
 };
 
 function gid(id){return document.getElementById(id)}
@@ -210,7 +229,7 @@ function place(kind, info={}){
         b.stock[pid]=rint(6,14);
         b.sellerIdeal[pid]=+(product(pid).base*rand(1.15,1.75)).toFixed(2);
       }
-      // NEW: per-store sellers (3–5 sellers, each with focused catalog)
+      // sellers with personalities
       b.sellers = makeSellersFor(b);
     }
     buildings.push(b); return b;
@@ -224,17 +243,12 @@ function makeSellersFor(b){
   for(let i=0;i<n;i++){
     const offerCount = Math.min(ids.length, rint(1, Math.min(2, ids.length)));
     const myOffers = shuffle(ids).slice(0, offerCount);
-    const seller = {
+    const persona = choice(PERSONAS);
+    sellers.push({
       name: randomSellerName(),
-      // personal ideal prices drift a bit from store’s
-      ask: Object.fromEntries(myOffers.map(pid=>{
-        const baseAsk = b.sellerIdeal[pid];
-        return [pid, +(baseAsk * rand(0.95,1.1)).toFixed(2)];
-      })),
-      // local stock (drawn from store pool on sale to avoid dup-counting)
-      // we’ll not track separate local stock to keep balance consistent; UI uses store stock numbers
-    };
-    sellers.push(seller);
+      persona,
+      offers: myOffers,
+    });
   }
   return sellers;
 }
@@ -252,7 +266,7 @@ function genCity(){
   for(let i=0;i<POP;i++){
     const h=choice(houseIds), bh=buildings[h];
     const {x,y}=isoToScreen(bh.col,bh.row);
-    const c={id:i, col:bh.col,row:bh.row, x,y, vx:0,vy:0, target:null, home:h,
+    const c={id:i, col:bh.col,row:bh.row, x,y, vx:0,vy:0, target:null, home=h,
       sick:Math.random()<0.03, sickDays:rint(0,SICK_DAYS), wallet:rint(50,180), priceIdeal:{}};
     for(const pr of PRODUCTS){ c.priceIdeal[pr.id]=+(pr.base*rand(0.75,1.1)).toFixed(2) }
     citizens.push(c);
@@ -406,41 +420,77 @@ leaveStoreBtn.onclick=()=>closeInterior();
 function startDay(){
   if(running) return;
   refreshNeedsFromInventory();
-  visitsMax = (player.needs.foodOk && player.needs.funOk) ? 2 : 1;
-  visitsLeft = visitsMax; visitsMaxEl.textContent=visitsMax; visitsLeftEl.textContent=visitsLeft;
 
-  if(player.sick){
-    player.dest=[player.home, player.home]; v1El.textContent='(Sick) Stay Home'; v2El.textContent='(Sick) Stay Home';
-    w1El.checked=false; w2El.checked=false; player.work=[false,false];
+  // Enforce the rule: one FOOD store and one FUN store
+  // (unless sick & not forgetting; then home-home; if sick & "forget", still enforce)
+  const foodBiz = pickAnyStoreOffering(FOOD_IDS);
+  const funBiz  = pickAnyStoreOffering(FUN_IDS);
+
+  if(player.sick && Math.random()>SICK_FORGET_PROB){
+    player.dest=[player.home, player.home];
+    v1El.textContent='(Sick) Stay Home'; v2El.textContent='(Sick) Stay Home';
+    player.work=[false,false]; w1El.checked=false; w2El.checked=false;
   } else {
-    for(let i=0;i<visitsMax;i++) if(player.dest[i]==null){
-      const ids=buildings.filter(b=>b.kind==='biz').map(b=>b.id);
-      const id=choice(ids); player.dest[i]=id; (i? v2El:v1El).textContent=buildings[id].name;
+    // If the player pre-picked, we’ll correct to satisfy the rule.
+    let d0 = player.dest[0], d1 = player.dest[1];
+    const types = id => (id==null)?null:buildings[id].offersSet || new Set(Object.keys(buildings[id].stock));
+    // helper flags
+    const isFood = id => id!=null && intersects(types(id), FOOD_IDS);
+    const isFun  = id => id!=null && intersects(types(id), FUN_IDS);
+
+    // build offersSet lazily
+    for(const b of buildings) if(b.kind==='biz' && !b.offersSet){
+      b.offersSet = new Set(Object.keys(b.stock));
     }
-    if(visitsMax===1){ player.dest[1]=null; v2El.textContent='— (locked; meet your needs)'; w2El.checked=false }
-    player.work=[!!w1El.checked, !!w2El.checked && visitsMax===2];
+
+    if(!isFood(d0) && !isFood(d1)) d0 = foodBiz ?? d0 ?? d1;
+    if(!isFun(d0)  && !isFun(d1))  d1 = funBiz  ?? d1 ?? d0;
+
+    // If still missing (rare), force-pick
+    if(!isFood(d0) && !isFood(d1)) d0 = foodBiz ?? d0;
+    if(!isFun(d0)  && !isFun(d1))  d1 = funBiz  ?? d1;
+
+    player.dest=[d0,d1];
+    v1El.textContent = buildings[d0]? `${buildings[d0].name} (${buildings[d0].type})` : '—';
+    v2El.textContent = buildings[d1]? `${buildings[d1].name} (${buildings[d1].type})` : '—';
+    player.work=[!!w1El.checked, !!w2El.checked];
   }
 
-  // citizens plan:
+  // visits available (needs can still limit to 1; but planner sets the two categories regardless)
+  visitsMax = (player.needs.foodOk && player.needs.funOk) ? 2 : 1;
+  visitsLeft = Math.min(visitsMax, player.dest.filter(v=>v!=null).length);
+  visitsMaxEl.textContent=visitsMax; visitsLeftEl.textContent=visitsLeft;
+
+  // citizens plan
   for(const a of citizens){
     if(a.sick && Math.random()>SICK_FORGET_PROB){
-      a.plan=[a.home, a.home]; // stays home
+      a.plan=[a.home, a.home];
     } else {
       const ids=buildings.filter(b=>b.kind==='biz').map(b=>b.id);
-      a.plan=[choice(ids), choice(ids)];
+      // They’ll also try to mix food/fun if possible
+      a.plan=[ pickAnyStoreOffering(FOOD_IDS, ids) ?? choice(ids),
+               pickAnyStoreOffering(FUN_IDS,  ids) ?? choice(ids) ];
     }
   }
 
   tPhase=0; lastTs=0; speed=SPEEDS.normal; phase='Visit 1'; phaseEl.textContent=phase; running=true;
-  prepPhase(0); log(`Day ${day} started.`);
+  prepPhase(0); log(`Day ${day} started. (Rule: 1 Food & 1 Fun stop)`);
 }
+function intersects(setA, setB){
+  for(const x of setA) if(setB.has(x)) return true;
+  return false;
+}
+function pickAnyStoreOffering(targetSet, fromIds=null){
+  const candidates = buildings.filter(b=>b.kind==='biz' && intersects(new Set(Object.keys(b.stock)), targetSet));
+  const pool = fromIds? candidates.filter(c=>fromIds.includes(c.id)) : candidates;
+  return pool.length? choice(pool).id : null;
+}
+
 function prepPhase(k){
   player.currentPhaseIndex = k;
   aimTo(player, pointOf(player, k));
   citizens.forEach(a=>aimTo(a, pointOf(a, k)));
-  // clear store overlay
   closeInterior(true);
-  // pre-open pane about destination
   const destId=player.dest[k]; pane.innerHTML='';
   if(destId!=null){ const b=buildings[destId]; if(b.kind==='biz'){ pane.innerHTML=renderShopPane(b,k); bindShopButtons(b,k) } }
 }
@@ -472,12 +522,11 @@ function renderBizPane(b,slot){
     <div><strong>${b.name}</strong> — ${b.owner===-1?'Unowned':(own?'Owned by You':'Owned')}</div>
     ${!own && b.owner===-1 ? `<button id="buyBtn">Buy ($${buyCost})</button>` : ''}
     ${hireRow}
-    <div style="margin-top:6px"><em>Stock & midpoint:</em></div>
+    <div style="margin-top:6px"><em>Stock (choose a seller inside):</em></div>
     <ul style="list-style:none;padding-left:14px;text-align:left">
       ${Object.keys(b.stock).map(pid=>{
-        const p=product(pid), you=player.priceIdeal[pid], ask=b.sellerIdeal[pid], edge=negotiationEdge();
-        const price=midPrice(you,ask,edge);
-        return `<li>${p.name}: inv <strong>${b.stock[pid]}</strong> · you $${you.toFixed(2)} · seller $${ask.toFixed(2)} → <strong>$${price}</strong></li>`
+        const p=product(pid), inv=b.stock[pid], ask=b.sellerIdeal[pid];
+        return `<li>${p.name}: inv <strong>${inv}</strong> · baseline ask ~$${ask.toFixed(2)}</li>`
       }).join('') || '<li>Sold out.</li>'}
     <div style="margin-top:6px"><button id="enterBtn">Enter store</button></div>
   </div>`;
@@ -489,8 +538,21 @@ function bindBizPane(b,slot){
 }
 
 /* =========================
-   STORE INTERIOR (NEW)
+   STORE INTERIOR (with personalities)
 ========================= */
+function sellerAskFor(shop, seller, pid){
+  let ask = shop.sellerIdeal[pid] ?? product(pid).base*1.3;
+  const per = seller.persona||{};
+  // base multiplier
+  ask *= (per.askMul ?? 1);
+  // low/high stock effects
+  const stock = shop.stock[pid] ?? 0;
+  if(stock <= 2 && per.lowStockMarkup) ask *= (1 + per.lowStockMarkup);
+  if(stock >= 10 && per.bulkDiscount)   ask *= (1 - per.bulkDiscount);
+  // jitter
+  if(per.jitter) ask *= (1 + rand(-per.jitter, per.jitter));
+  return +ask.toFixed(2);
+}
 function openInterior(b){
   interiorName.textContent = `${b.name} (${b.type})`;
   interiorWrap.style.display = "flex";
@@ -505,32 +567,16 @@ function closeInterior(silent=false){
 }
 function drawInterior(b){
   ictx.clearRect(0,0,interiorCanvas.width, interiorCanvas.height);
-  // simple “inside market” look: aisles and stalls
   ictx.fillStyle="#101b35"; ictx.fillRect(0,0,interiorCanvas.width,interiorCanvas.height);
-  // aisles
-  for(let i=1;i<=3;i++){
-    ictx.fillStyle = i%2? "#0f1428":"#0e152a";
-    ictx.fillRect(40, 40 + i*80, interiorCanvas.width-80, 50);
-  }
-  // sellers as blobs behind counters
+  for(let i=1;i<=3;i++){ ictx.fillStyle = i%2? "#0f1428":"#0e152a"; ictx.fillRect(40, 40 + i*80, interiorCanvas.width-80, 50); }
   const sellers = b.sellers;
   const spacing = (interiorCanvas.width-120)/sellers.length;
   sellers.forEach((s,idx)=>{
     const cx = 80 + idx*spacing + spacing/2, cy = 120;
-    // counter
     ictx.fillStyle="#1b2546"; ictx.fillRect(cx-50, cy+18, 100, 16);
-    // seller blob
-    drawBlob2D(ictx, cx, cy, 12, "#7ec3ff");
-    // name
+    drawBlob2D(ictx, cx, cy, 12, s.persona?.color || "#7ec3ff");
     ictx.fillStyle="#d7e6ff"; ictx.font="12px system-ui"; ictx.textAlign="center";
-    ictx.fillText(s.name, cx, cy-18);
-    // items rendered as small circles
-    let x = cx-36, y=cy+46;
-    Object.keys(s.ask).forEach(pid=>{
-      ictx.fillStyle="#2f4f8a"; ictx.beginPath(); ictx.arc(x, y, 6, 0, Math.PI*2); ictx.fill();
-      ictx.fillStyle="#cfe3ff"; ictx.fillText(product(pid).name[0], x, y+3);
-      x+=22;
-    });
+    ictx.fillText(`${s.name}`, cx, cy-18);
   });
 }
 function buildSellerCards(b){
@@ -538,18 +584,29 @@ function buildSellerCards(b){
   const sellers = b.sellers;
   sellers.forEach((s,idx)=>{
     const div=document.createElement('div'); div.className='sellerCard';
-    const items = Object.keys(s.ask).map(pid=>{
+    const items = (s.offers||[]).map(pid=>{
       const p=product(pid);
-      const storeAsk = s.ask[pid]; // seller’s personal ask
-      const you=player.priceIdeal[pid];
-      const price = midPrice(you, storeAsk, negotiationEdge());
+      const ask = sellerAskFor(b, s, pid);
+      const you=player.priceIdeal[pid] ?? p.base;
+      // personality edge modifies your normal edge a bit
+      let edge = negotiationEdge() + (s.persona?.edgeBonus || 0);
+      edge = clamp(edge, 0, 0.2);
+      const price = midPrice(you, ask, edge);
       const inv = b.stock[pid] ?? 0;
-      return `<li>${p.name}: inv <strong>${inv}</strong> · seller $${storeAsk.toFixed(2)} · you $${you.toFixed(2)} → <strong>$${price}</strong>
+      return `<li>${p.name}: inv <strong>${inv}</strong>
+              · seller $${ask.toFixed(2)} · you $${you.toFixed(2)}
+              → <strong>$${price}</strong>
               <button data-buy="${pid}" data-sidx="${idx}" ${inv<=0?'disabled':''}>Buy</button></li>`;
-    }).join("") || "<li>Sold out.</li>";
+    }).join("") || "<li>Nothing to sell.</li>";
+
+    const badgeStyle = `background:${(s.persona?.color||'#2b3e6a')}22; border-color:${s.persona?.color||'#2b3e6a'}; color:#e7f2ff`;
     div.innerHTML = `
-      <h4>${s.name} <span class="mini">(${Object.keys(s.ask).map(pid=>product(pid).name).join(", ")||"Nothing"})</span></h4>
-      <div class="mini">Pick your seller; each has their own prices.</div>
+      <h4>${s.name}
+        <span class="badge" style="${badgeStyle}" title="${s.persona?.desc||''}">
+          ${s.persona?.title||'Seller'}
+        </span>
+      </h4>
+      <div class="mini">${s.persona?.desc||''}</div>
       <ul style="list-style:none; padding-left:14px">${items}</ul>
     `;
     sellerList.appendChild(div);
@@ -561,18 +618,18 @@ function buildSellerCards(b){
       const sidx=+btn.getAttribute('data-sidx');
       const shop=buildings[player.inStore]; const seller=shop.sellers[sidx];
       if((shop.stock[pid]||0)<=0){ log('Out of stock.'); buildSellerCards(shop); return }
-      const p=product(pid), you=player.priceIdeal[pid], ask=seller.ask[pid], edge=negotiationEdge();
+      const p=product(pid), you=player.priceIdeal[pid] ?? p.base;
+      const ask=sellerAskFor(shop, seller, pid);
+      let edge = negotiationEdge() + (seller.persona?.edgeBonus || 0);
+      edge = clamp(edge, 0, 0.2);
       const price=midPrice(you,ask,edge);
       if(player.money<price){ log(`Not enough money for ${p.name} ($${price}).`); return }
-      // transact against the shop’s stock (so city economy stays consistent)
+      // transact
       player.money-=price; player.inventory[pid]=(player.inventory[pid]||0)+1; shop.stock[pid]--; shop.till+=price;
-      // working bonus if you marked “work this visit”
       if(player.currentPhaseIndex!=null && player.work[player.currentPhaseIndex]){ player.money+=price }
       if((shop.stock[pid]||0)<=1) shop.sellerIdeal[pid]*=1.02;
-      // needs update
-      refreshNeedsFromInventory();
-      updateTop(); buildSellerCards(shop); drawInterior(shop);
-      log(`You bought ${p.name} from ${seller.name} @ ${shop.name} for $${price}.`);
+      refreshNeedsFromInventory(); updateTop(); buildSellerCards(shop); drawInterior(shop);
+      log(`You bought ${p.name} from ${seller.name} (${seller.persona?.title||'Seller'}) @ ${shop.name} for $${price}.`);
     };
   });
 }
@@ -620,7 +677,6 @@ function step(ts){
   if(k!=null){
     simulateWorkerSales(k);
     citizens.forEach(a=>maybeBuyWhenArrive(a,k,false));
-    // auto-open interior when you arrive (once)
     handlePlayerArrivalForInterior(k);
   }
 
@@ -642,10 +698,7 @@ function handlePlayerArrivalForInterior(k){
   const destId = player.dest[k]; if(destId==null) return;
   const b = buildings[destId]; const target=isoToScreen(b.col,b.row);
   const arrived = ((player.x-target.x)**2 + (player.y-target.y)**2) < 25;
-  if(arrived && player.inStore==null){
-    // open interior
-    openInterior(b);
-  }
+  if(arrived && player.inStore==null){ openInterior(b); }
 }
 function relaxPricesSlightly(){
   for(const b of buildings) if(b.kind==='biz'){
@@ -653,28 +706,22 @@ function relaxPricesSlightly(){
   }
 }
 function startReturnHome(){
-  // aim EVERYONE home and run a short return phase
   phase='Returning'; phaseEl.textContent=phase; tPhase=0;
   const homeP=buildings[player.home]; aimTo(player, isoToScreen(homeP.col, homeP.row));
   citizens.forEach(a=>{ const hm=buildings[a.home]; aimTo(a, isoToScreen(hm.col, hm.row)); });
   closeInterior(true);
 }
 function finishDay(){
-  // night: consume needs
   consumeNeeds();
-  // sickness tick
   if(player.sick){ player.sickDays--; if(player.sickDays<=0){ player.sick=false; statusEl.textContent='Healthy'; statusEl.className='accent ok'; log('You recovered!') } else { statusEl.textContent=`Sick (${player.sickDays}d)` } }
-  // worker wages
   const wages = buildings.filter(b=>b.kind==='biz' && b.owner===0 && b.hired).length * 20;
   if(wages>0){ player.money -= wages; updateTop(); log(`Paid worker wages: $${wages}.`) }
-  // next day
   day++; dayEl.textContent=day; phase='Planning'; phaseEl.textContent=phase; running=false;
   citizens.forEach(a=>{ a.didBuy=false });
   player.dest=[null,null]; v1El.textContent='— (click a business)'; v2El.textContent='— (click a business)';
   refreshNeedsFromInventory();
   visitsMax = (player.needs.foodOk && player.needs.funOk)? 2 : 1;
   visitsLeft=visitsMax; visitsMaxEl.textContent=visitsMax; visitsLeftEl.textContent=visitsLeft;
-  // restock
   for(const b of buildings) if(b.kind==='biz'){
     for(const pid of Object.keys(b.stock)){ if(b.stock[pid]<8) b.stock[pid]+=rint(0,2) }
     for(const pid of Object.keys(b.sellerIdeal)){ b.sellerIdeal[pid]*=rand(0.98,1.02) }
@@ -758,10 +805,7 @@ function trySaleAtShop(shop, buyer, playerWorking){
    MISC
 ========================= */
 function updateTop(){ moneyEl.textContent=Math.floor(player.money); houseLvEl.textContent=player.houseLv }
-function renderShopPane(b, slot){
-  // (kept minimal: ownership & Enter button; detailed buy happens inside)
-  return renderBizPane(b, slot);
-}
+function renderShopPane(b, slot){ return renderBizPane(b, slot) }
 function bindShopButtons(b, slot){ bindBizPane(b, slot) }
 
 /* =========================
